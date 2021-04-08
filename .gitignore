@@ -1,0 +1,12 @@
+*.pyc
+node_modules/
+
+.DS_Store
+.AppleDouble
+.LSOverride
+.vscode/
+.env
+
+celerybeat.pid
+
+venv/

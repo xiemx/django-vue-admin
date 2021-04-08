@@ -1,0 +1,131 @@
+global:
+  nodeSelector:
+    nodetype: monitor
+
+  env:
+    - name: CELERY_REDIS_URL
+      value: "redis://redis.devops:6379/241"
+    - name: GITLAB_SERVER
+      value: "https://code.xiemx.com/"
+    - name: DATABASE_DB
+      value: "bomb"
+    - name: DATABASE_HOST
+      value: "postgresql.devops"
+    - name: DATABASE_PORT
+      value: "5432"
+  envFromSecret:
+    enabled: true
+    name:
+     - bomb
+
+  worker:
+    enabled: true
+    replicas: 1
+    image:
+      repository: xiemx
+      pullPolicy: IfNotPresent
+      tag: backend
+
+    command:
+      enabled: true
+      cmd: 
+        - /bin/bash
+        - -c
+        - celery -A bomb worker
+
+  beat:
+    enabled: true
+    replicas: 1
+    image:
+      repository: xiemx
+      pullPolicy: IfNotPresent
+      tag: backend
+
+    command:
+      enabled: true
+      cmd: 
+         - /bin/bash
+         - -c
+         - celery -A bomb beat
+
+
+  frontend:
+    enabled: true
+    replicas: 1
+    containerPort: 80
+    protocol: TCP
+    image:
+      repository: xiemx
+      pullPolicy: IfNotPresent
+      tag: frontend
+
+
+  backend:
+    enabled: true
+    replicas: 1
+    containerPort: 8080
+    protocol: TCP
+    image:
+      repository: xiemx
+      pullPolicy: IfNotPresent
+      tag: backend
+
+    command:
+      enabled: true
+      cmd: 
+        - /bin/bash
+        - -c
+        - python manage.py runserver 0.0.0.0:8080
+
+  flower:
+    enabled: true
+    replicas: 1
+    containerPort: 5555
+    protocol: TCP
+    image:
+      repository: xiemx
+      pullPolicy: IfNotPresent
+      tag: backend
+
+    command:
+      enabled: true
+      cmd: 
+        - /bin/bash
+        - -c
+        - celery -A bomb flower --basic_auth=${FLOWER_USER}:${FLOWER_PASSWORD}
+
+
+service:
+  flower:
+    type: ClusterIP
+    port: 5555
+  frontend:
+    type: ClusterIP
+    port: 8000
+  backend:
+    type: ClusterIP
+    port: 8080
+
+
+ingress:
+  flower:
+    annotations: 
+      nginx.ingress.kubernetes.io/whitelist-source-range: 192.168.168.0/24
+    host: flower.xiemx.com
+    # tls:
+    # - hosts:
+    #   - flower.xiemx.com
+    #   secretName: xiemx.com
+
+  frontend:
+    enabled: true
+    annotations: 
+      nginx.ingress.kubernetes.io/whitelist-source-range: 192.168.168.0/24
+    host: bomb.xiemx.com
+      # tls:
+      # - hosts:
+      #   - bomb.xiemx.com
+      #   secretName: xiemx.com
+
+hooks:
+  enabled: true

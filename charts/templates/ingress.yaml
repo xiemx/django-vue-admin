@@ -1,0 +1,42 @@
+{{- if .Values.ingress.frontend.enabled }}
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations: {{- toYaml .Values.ingress.frontend.annotations | nindent 4}}
+  name: {{ .Release.Name }}
+spec:
+  rules:
+  - host: {{ .Values.ingress.frontend.host }}
+    http:
+      paths:
+      - backend:
+          serviceName:  {{ .Release.Name }}-frontend
+          servicePort: {{ .Values.service.frontend.port }}
+        path: /
+  tls:
+  - hosts:
+    - {{ .Values.ingress.frontend.host }}
+    secretName: xiemx.com
+{{- end }}
+
+---
+{{- if .Values.global.flower.enabled }}
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations: {{- toYaml .Values.ingress.flower.annotations | nindent 4}}
+  name: {{ .Release.Name }}-flower
+spec:
+  rules:
+  - host: {{ .Values.ingress.flower.host }}
+    http:
+      paths:
+      - backend:
+          serviceName:  {{ .Release.Name }}-flower
+          servicePort: {{ .Values.service.flower.port }}
+        path: /
+  tls:
+  - hosts:
+    - {{ .Values.ingress.flower.host }}
+    secretName: xiemx.com
+{{- end }}

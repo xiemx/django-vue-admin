@@ -1,0 +1,7 @@
+FROM openresty/openresty
+
+ADD vue-admin/nginx.conf /etc/nginx/conf.d/default.conf
+
+COPY django/static/ /usr/local/openresty/nginx/html/static/
+
+ADD vue-admin/dist /usr/local/openresty/nginx/html

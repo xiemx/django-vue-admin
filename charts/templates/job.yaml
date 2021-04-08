@@ -1,0 +1,42 @@
+{{- if .Values.hooks.enabled}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "{{.Release.Name}}"
+  labels:
+    release: {{.Release.Name | quote }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  template:
+    metadata:
+      name: "{{.Release.Name}}"
+      labels:
+        release: {{.Release.Name | quote }}
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: migrate-job
+        image: {{ .Values.global.backend.image.repository }}:{{ .Values.global.backend.image.tag }}
+        command: 
+          - /bin/bash
+          - -c 
+          - python manage.py migrate
+        env:
+        {{- range  .Values.global.env }}
+        - name: {{ index . "name" }}
+          value: {{ toYaml (index . "value") | trim}}
+        {{- end }}
+
+        {{- if .Values.global.envFromSecret.enabled }}
+        envFrom:
+        {{- range .Values.global.envFromSecret.name }}
+        - secretRef:
+            name: {{ index . }}
+        {{- end }}
+        {{- end }}
+      imagePullSecrets:
+      - name: aliyun-registry
+{{- end }}

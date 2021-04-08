@@ -1,0 +1,17 @@
+FROM python:3.9.1
+
+COPY django/ /app
+
+WORKDIR /app
+
+RUN pip install -r requirements.txt
+
+RUN useradd bomb && chown bomb /app -R 
+
+RUN sed -i -e "s/CipherString = DEFAULT@SECLEVEL=2/CipherString = DEFAULT@SECLEVEL=1/g" /etc/ssl/openssl.cnf
+
+RUN wget -e 'https_proxy=http://192.168.31.242:7890' -O helm.tar.gz https://get.helm.sh/helm-v3.5.2-linux-386.tar.gz && tar -zxvf helm.tar.gz && mv linux-386/helm /usr/local/bin/helm && chmod +x /usr/local/bin/helm
+
+USER bomb
+
+CMD ['/usr/local/bin/uwsgi', 'uwsgi.ini']

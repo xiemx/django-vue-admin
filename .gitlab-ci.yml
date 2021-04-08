@@ -1,0 +1,81 @@
+stages:
+  - prepare
+  - build
+  - test
+  - deploy
+
+
+
+
+prepare-build-frontend:
+  image: node:15.4
+  stage: prepare
+  script:
+    # - npm config set registry https://registry.npm.taobao.org
+    - export https_proxy=http://192.168.31.242:7890
+    - export http_proxy=http://192.168.31.242:7890
+    - cd vue-admin && npm install && npm run build
+  artifacts:
+      name: "front-html"
+      expire_in: 60 mins
+      paths:
+          - $CI_PROJECT_DIR/vue-admin/dist   
+  tags:
+    - noj-china-builder2
+
+docker-build-frontend:
+  stage: build
+  dependencies:
+    - prepare-build-frontend
+  script:
+    - docker login -u $ALIYUN_REGISTRY_USER -p $ALIYUN_REGISTRY_PASSWORD registry.cn-hangzhou.aliyuncs.com
+    - docker build -t registry.cn-hangzhou.aliyuncs.com/xiemx:frontend-$CI_COMMIT_SHORT_SHA -f docker/Dockfile.frontend .
+    - docker push registry.cn-hangzhou.aliyuncs.com/xiemx:frontend-$CI_COMMIT_SHORT_SHA
+  tags:
+    - noj-china-builder2
+
+docker-build-backend:
+  stage: build
+  dependencies: []
+  script:
+    - export https_proxy=http://192.168.31.242:7890
+    - export http_proxy=http://192.168.31.242:7890
+    - docker login -u $ALIYUN_REGISTRY_USER -p $ALIYUN_REGISTRY_PASSWORD registry.cn-hangzhou.aliyuncs.com
+    - docker build -t registry.cn-hangzhou.aliyuncs.com/xiemx:backend-$CI_COMMIT_SHORT_SHA -f docker/Dockfile.backend .
+    - docker push registry.cn-hangzhou.aliyuncs.com/xiemx:backend-$CI_COMMIT_SHORT_SHA
+  tags:
+    - noj-china-builder2
+
+
+test-django:
+  stage: test
+  image: registry.cn-hangzhou.aliyuncs.com/xiemx:backend-$CI_COMMIT_SHORT_SHA
+  dependencies: []
+  script:
+    - cd /app && python manage.py test
+  tags:
+    - noj-china-builder2
+  allow_failure: true
+
+
+deploy:
+  stage: deploy
+  dependencies: []
+  script:
+    - echo "helm upgrade --install --atomic --wait --timeout 20m -n devops bomb charts -f charts/values.yaml \
+      --set-string global.frontend.image.tag=frontend-$CI_COMMIT_SHORT_SHA \
+      --set-string global.backend.image.tag=backend-$CI_COMMIT_SHORT_SHA \
+      --set-string global.worker.image.tag=backend-$CI_COMMIT_SHORT_SHA \
+      --set-string global.beat.image.tag=backend-$CI_COMMIT_SHORT_SHA \
+      --set-string global.flower.image.tag=backend-$CI_COMMIT_SHORT_SHA " 
+
+    - helm upgrade --install --atomic --wait --timeout 20m -n devops bomb charts -f charts/values.yaml 
+      --set-string global.frontend.image.tag=frontend-$CI_COMMIT_SHORT_SHA 
+      --set-string global.backend.image.tag=backend-$CI_COMMIT_SHORT_SHA 
+      --set-string global.worker.image.tag=backend-$CI_COMMIT_SHORT_SHA 
+      --set-string global.beat.image.tag=backend-$CI_COMMIT_SHORT_SHA 
+      --set-string global.flower.image.tag=backend-$CI_COMMIT_SHORT_SHA 
+  tags:
+    - helm3
+  only:
+    - master
